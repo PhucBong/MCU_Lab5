@@ -68,6 +68,9 @@ static void MX_TIM2_Init(void);
 #define RST					0
 #define OK					1
 
+#define IDLE				0
+#define SEND				1
+
 #define MAX_BUFFER_SIZE 	30
 uint8_t temp = 0;
 uint8_t buffer[MAX_BUFFER_SIZE];
@@ -75,6 +78,7 @@ uint8_t index_buffer = 0;
 uint8_t buffer_flag = 0;
 
 uint8_t flag_command_parser = OK;
+uint8_t flag_uart_communication = IDLE;
 uint32_t command_data;
 uint8_t command_flag = 0;
 
@@ -159,11 +163,27 @@ void command_parser_fsm(){
 }
 
 void uart_communication_fsm(){
-	if(command_flag == 1 && timer0_flag == 1){
-		uint8_t str[20];
-		sprintf(str, "!ADC=%lu#\r\n", command_data);
-		HAL_UART_Transmit(&huart2, str, sizeof(str) / sizeof(str[0]), 1000);
-		setTimer0(3000);
+	switch (flag_uart_communication) {
+		case IDLE:
+			if(command_flag == 1){
+				timer0_flag = 1;
+				flag_uart_communication = SEND;
+			}
+			break;
+		case SEND:
+			if(command_flag == 0){
+				flag_uart_communication = IDLE;
+				break;
+			}
+			if(timer0_flag == 1){
+				uint8_t str[20];
+				sprintf(str, "!ADC=%lu#\r\n", command_data);
+				HAL_UART_Transmit(&huart2, str, sizeof(str) / sizeof(str[0]), 1000);
+				setTimer0(3000);
+			}
+			break;
+		default:
+			break;
 	}
 }
 
